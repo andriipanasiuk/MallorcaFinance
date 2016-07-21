@@ -5,19 +5,20 @@ import java.util.List;
 
 import static com.andriipanasiuk.finance.Main.Currency.гривен;
 import static com.andriipanasiuk.finance.Main.Currency.долларов;
-import static com.andriipanasiuk.finance.Main.ExpenseAccount.продукты;
+import static com.andriipanasiuk.finance.Main.IncomeItem.работу;
+import static com.andriipanasiuk.finance.Main.OutcomeAccount.продукты;
 import static com.andriipanasiuk.finance.Main.Printer.распечатать;
 
 public class Main {
 
-    static class ExpenseAccount extends Account {
+    static class OutcomeAccount extends Account {
 
-        ExpenseAccount(String name) {
+        OutcomeAccount(String name) {
             this.name = name;
         }
 
-        public static ExpenseAccount продукты() {
-            return new ExpenseAccount("продукты");
+        public static OutcomeAccount продукты() {
+            return new OutcomeAccount("продукты");
         }
     }
 
@@ -30,23 +31,23 @@ public class Main {
 
     }
 
-    static class Expense extends Transaction {
-        private ExpenseAccount expenseAccount;
+    static class OutcomeTransaction extends Transaction {
+        private OutcomeAccount outcomeAccount;
 
-        public static Expense потратил(double sum, Currency currency) {
-            Expense expense = new Expense();
-            expense.sum = sum;
-            expense.currency = currency;
-            return expense;
+        public static OutcomeTransaction потратил(double sum, Currency currency) {
+            OutcomeTransaction outcomeTransaction = new OutcomeTransaction();
+            outcomeTransaction.sum = sum;
+            outcomeTransaction.currency = currency;
+            return outcomeTransaction;
         }
 
-        public Expense на(ExpenseAccount expenseAccount) {
-            this.expenseAccount = expenseAccount;
+        public OutcomeTransaction на(OutcomeAccount outcomeAccount) {
+            this.outcomeAccount = outcomeAccount;
             return this;
         }
 
         public String toString() {
-            return String.format("Потратил %s %s на %s", DoubleUtils.toString(sum), currency, expenseAccount.name);
+            return String.format("Потратил %s %s на %s", DoubleUtils.toString(sum), currency, outcomeAccount.name);
         }
 
     }
@@ -122,7 +123,7 @@ public class Main {
         }
     }
 
-    static abstract class MonthExpenses {
+    static abstract class Period {
         private List<Transaction> transactions = new ArrayList<>();
 
         public CurrencyExchangeOperation купил(double sum, Currency currency) {
@@ -131,31 +132,84 @@ public class Main {
             return operation;
         }
 
-        public Expense потратил(double sum, Currency currency) {
-            Expense expense = Expense.потратил(sum, currency);
-            transactions.add(expense);
-            return expense;
+        public OutcomeTransaction потратил(double sum, Currency currency) {
+            OutcomeTransaction outcomeTransaction = OutcomeTransaction.потратил(sum, currency);
+            transactions.add(outcomeTransaction);
+            return outcomeTransaction;
         }
 
-        protected abstract void расходы();
+        public IncomeTransaction получил(double sum, Currency currency) {
+            IncomeTransaction transaction = IncomeTransaction.получил(sum, currency);
+            transactions.add(transaction);
+            return transaction;
+        }
+
+        protected abstract void расходы_и_доходы();
     }
 
-    static class July2016 extends MonthExpenses {
+    static class Cash extends Account {
+        @Override
+        public String toString() {
+            return "Наличные";
+        }
+    }
+
+    static class IncomeItem {
+        final String name;
+
+        IncomeItem(String name) {
+            this.name = name;
+        }
+
+        public static IncomeItem работу() {
+            return new IncomeItem("работу");
+        }
 
         @Override
-        protected void расходы() {
+        public String toString() {
+            return name;
+        }
+    }
+
+    static class IncomeTransaction extends Transaction {
+
+        IncomeItem forItem;
+
+        public IncomeTransaction за(IncomeItem incomeItem) {
+            forItem = incomeItem;
+            return this;
+        }
+
+        public static IncomeTransaction получил(double sum, Currency currency) {
+            IncomeTransaction incomeTransaction = new IncomeTransaction();
+            incomeTransaction.sum = sum;
+            incomeTransaction.currency = currency;
+            return incomeTransaction;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("Получил %s %s за %s", DoubleUtils.toString(sum), currency, forItem);
+        }
+    }
+
+    static class July2016 extends Period {
+
+        @Override
+        protected void расходы_и_доходы() {
             потратил(20, гривен()).на(продукты());
             потратил(30, гривен()).на(продукты());
             купил(1000, долларов()).по_курсу(26.5);
+            получил(10000, долларов()).за(работу());
         }
     }
 
     static class Printer {
-        public static void распечатать(Class<? extends MonthExpenses> expensesClass) {
+        public static void распечатать(Class<? extends Period> expensesClass) {
             try {
-                MonthExpenses monthExpenses = expensesClass.newInstance();
-                monthExpenses.расходы();
-                monthExpenses.transactions.forEach(System.out::println);
+                Period period = expensesClass.newInstance();
+                period.расходы_и_доходы();
+                period.transactions.forEach(System.out::println);
             } catch (InstantiationException e) {
                 throw new RuntimeException(e);
             } catch (IllegalAccessException e) {
